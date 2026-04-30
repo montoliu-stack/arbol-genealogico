@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Árbol Familiar">
+<meta name="theme-color" content="#ffffff">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><rect width=%27100%27 height=%27100%27 rx=%2720%27 fill=%27%23185FA5%27/><text y=%27.9em%27 font-size=%2780%27>🌳</text></svg>">
+<title>Árbol Genealógico</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+#wrap{display:flex;flex-direction:column;height:100vh;padding:10px 14px;gap:6px;background:#fff;color:#1a1a1a}
+.tb{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0}
+.tb-title{font-size:17px;font-weight:500;flex:1}
+.btn{padding:6px 14px;font-size:12px;border:1px solid #ccc;background:#fff;color:#1a1a1a;border-radius:8px;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn:hover{background:#f0f0ec}
+.btn.p{background:#185FA5;color:#fff;border-color:#185FA5}
+.btn.p:hover{background:#0C447C}
+.btn.danger{color:#A32D2D;border-color:#f0c0c0}
+.btn.danger:hover{background:#FCEBEA}
+.sbar{font-size:11px;color:#666;display:flex;align-items:center;gap:6px;min-height:14px;flex-shrink:0}
+.dot{width:6px;height:6px;border-radius:50%;background:#3B6D11;flex-shrink:0;display:inline-block}
+.dot.w{background:#BA7517}
+.leg-row{font-size:11px;color:#aaa;display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex-shrink:0}
+.leg{display:flex;align-items:center;gap:4px}
+.vp{flex:1;min-height:0;border:1px solid #e0e0d8;border-radius:12px;background:#fafaf7;overflow:hidden;position:relative;cursor:grab;touch-action:none;-webkit-touch-callout:none}
+.vp.pan{cursor:grabbing}
+#world{position:absolute;transform-origin:0 0}
+#svg-lines{position:absolute;top:0;left:0;pointer-events:none;overflow:visible}
+.node{position:absolute;width:170px;background:#fff;border:1px solid #ddd;border-radius:10px;padding:9px 12px 8px;cursor:pointer;user-select:none;transition:box-shadow 0.12s;touch-action:none;-webkit-tap-highlight-color:transparent}
+.node:hover{box-shadow:0 2px 10px rgba(0,0,0,0.1)}
+.node.selected{box-shadow:0 0 0 3px rgba(24,95,165,0.2)!important}
+.node.male{border-top:3px solid #185FA5}
+.node.female{border-top:3px solid #C2185B}
+.node-gender{font-size:10px;margin-bottom:2px}
+.node-gender.male{color:#185FA5}
+.node-gender.female{color:#C2185B}
+.nn{font-size:13px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nc2{font-size:11px;color:#666;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ny{font-size:10px;color:#999;margin-top:1px}
+.zbar{position:absolute;bottom:12px;right:12px;display:flex;gap:4px;z-index:5}
+.zb{width:30px;height:30px;border:1px solid #ccc;background:#fff;color:#1a1a1a;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.zb:hover{background:#f0f0ec}
+.zlbl{font-size:11px;color:#666;display:flex;align-items:center;padding:0 8px;background:#fff;border:1px solid #e0e0e0;border-radius:8px;min-width:46px;justify-content:center}
+.empty-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:#888;font-size:13px;pointer-events:none}
+.empty-state button{pointer-events:all}
+/* Detail panel */
+.detail-panel{position:absolute;top:12px;right:12px;width:232px;background:#fff;border:1px solid #ddd;border-radius:12px;padding:14px 14px 12px;z-index:20;box-shadow:0 4px 20px rgba(0,0,0,0.1);display:none}
+.detail-panel.open{display:block}
+.dp-close{position:absolute;top:10px;right:10px;width:22px;height:22px;border:none;background:transparent;color:#999;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+.dp-close:hover{background:#f0f0ec}
+.dp-avatar{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;margin-bottom:10px}
+.dp-avatar.male{background:#BBDEFB;color:#0C447C}
+.dp-avatar.female{background:#FCE4EC;color:#880E4F}
+.dp-name{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:1px;line-height:1.3;padding-right:24px}
+.dp-gender{font-size:11px;color:#888;margin-bottom:2px}
+.dp-row{display:flex;align-items:baseline;gap:6px;margin-top:7px;padding-top:7px;border-top:1px solid #f0f0ec}
+.dp-lbl{font-size:11px;color:#aaa;min-width:52px;flex-shrink:0}
+.dp-val{font-size:12px;color:#1a1a1a}
+.dp-section{font-size:10px;font-weight:700;color:#aaa;margin-top:11px;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em}
+.dp-rel{display:flex;flex-wrap:wrap;gap:4px}
+.dp-rel-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#f5f5f5;color:#333;border:1px solid #eee;cursor:pointer}
+.dp-rel-tag:hover{background:#e8e8e8}
+.dp-actions{display:flex;gap:5px;margin-top:8px}
+.dp-btn{flex:1;padding:5px 0;font-size:11px;border:1px solid #ddd;background:#fff;color:#1a1a1a;border-radius:7px;cursor:pointer;text-align:center}
+.dp-btn:hover{background:#f0f0ec}
+.dp-btn.danger{color:#A32D2D;border-color:#f0c0c0}
+.dp-btn.danger:hover{background:#FCEBEA}
+.bot{display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0;padding:4px 0 2px}
+.bot-label{font-size:12px;font-weight:500;color:#555}
+.exp-note{font-size:11px;color:#aaa}
+/* Modal */
+.modal-bg{position:fixed;inset:0;z-index:9999;display:none;align-items:flex-start;justify-content:center;background:rgba(0,0,0,0.38);padding-top:30px;overflow-y:auto}
+.modal{background:#fff;border-radius:12px;border:1px solid #ddd;padding:1.4rem;width:360px;max-width:94vw;box-shadow:0 8px 28px rgba(0,0,0,0.14);margin-bottom:30px}
+.modal h3{font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:14px}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:11px;color:#666;margin-bottom:4px;font-weight:500}
+.field input,.field select{width:100%;padding:7px 10px;font-size:12px;border:1px solid #ccc;border-radius:7px;background:#fff;color:#1a1a1a;font-family:inherit}
+.field input:focus,.field select:focus{outline:none;border-color:#185FA5;box-shadow:0 0 0 2px rgba(24,95,165,0.12)}
+.field input.err{border-color:#E24B4A}
+.gender-row{display:flex;gap:8px}
+.gender-row button{flex:1;padding:9px 8px;font-size:13px;border:2px solid #ddd;border-radius:8px;cursor:pointer;background:#fff;color:#777;font-family:inherit;font-weight:500}
+.gender-row button:hover{background:#f5f5f5}
+.gender-row button.active-male{background:#E3F2FD;border-color:#185FA5;color:#0C447C}
+.gender-row button.active-female{background:#FCE4EC;border-color:#C2185B;color:#880E4F}
+/* relation type buttons */
+.rel-section{background:#f8f8f8;border:1px solid #eee;border-radius:8px;padding:10px 12px;margin-bottom:11px}
+.rel-title{font-size:11px;font-weight:600;color:#555;margin-bottom:10px}
+.rel-type-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.rel-type-row button{padding:6px 11px;font-size:12px;border:1px solid #ddd;border-radius:6px;cursor:pointer;background:#fff;color:#555;font-family:inherit}
+.rel-type-row button:hover{background:#f0f0ec}
+.rel-type-btn.sel-padre{background:#E3F2FD;border-color:#185FA5;color:#0C447C;font-weight:600}
+.rel-type-btn.sel-madre{background:#FCE4EC;border-color:#C2185B;color:#880E4F;font-weight:600}
+.rel-type-btn.sel-hijo{background:#E8F5E9;border-color:#2E7D32;color:#1B5E20;font-weight:600}
+.rel-type-btn.sel-hermano{background:#FFF3E0;border-color:#E65100;color:#BF360C;font-weight:600}
+.rel-type-btn.sel-pareja{background:#F3E5F5;border-color:#6A1B9A;color:#4A148C;font-weight:600}
+.rel-person-row{display:none}
+.rel-person-row.show{display:block}
+/* second parent section */
+.second-parent-section{display:none;margin-top:8px;padding-top:8px;border-top:1px solid #e8e8e8}
+.second-parent-section.show{display:block}
+.second-parent-label{font-size:11px;color:#666;font-weight:500;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.modal-btns{display:flex;gap:6px;justify-content:flex-end;margin-top:14px}
+.toast{position:fixed;bottom:20px;right:20px;background:#1a1a1a;color:#fff;padding:9px 16px;border-radius:8px;font-size:12px;z-index:10000;opacity:0;transition:opacity 0.25s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div id="ios-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#185FA5;color:#fff;padding:12px 16px;font-size:13px;z-index:99999;text-align:center;font-family:-apple-system,sans-serif">
+  📲 Para usarla como app: pulsa <strong>Compartir</strong> → <strong>"Añadir a inicio"</strong>
+  <button onclick="document.getElementById('ios-banner').style.display='none';localStorage.setItem('ios-banner-dismissed','1');" style="margin-left:12px;background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.5);color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer">✕ Cerrar</button>
+</div>
+<div id="wrap">
+  <div class="tb">
+    <span class="tb-title">Árbol genealógico</span>
+    <button class="btn p" id="btn-add">+ Persona</button>
+    <button class="btn" id="btn-save">💾 Guardar</button>
+    <button class="btn" id="btn-center">Centrar</button>
+    <button class="btn danger" id="btn-clear">Limpiar</button>
+  </div>
+  <div class="sbar"><span class="dot" id="sdot"></span><span id="stxt">Iniciando...</span></div>
+  <div class="leg-row">
+    <span class="leg"><span style="width:12px;height:12px;border-radius:50%;background:#BBDEFB;border:2px solid #185FA5;display:inline-block"></span>Hombre</span>
+    <span class="leg"><span style="width:12px;height:12px;border-radius:50%;background:#FCE4EC;border:2px solid #C2185B;display:inline-block"></span>Mujer</span>
+    <span style="color:#ddd">|</span>
+    <span class="leg"><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="#2E7D32" stroke-width="2"/></svg>Hijo/a</span>
+    <span class="leg"><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="#E65100" stroke-width="1.5" stroke-dasharray="5,3"/></svg>Hermano/a</span>
+    <span class="leg"><svg width="22" height="10"><line x1="0" y1="5" x2="22" y2="5" stroke="#6A1B9A" stroke-width="2" stroke-dasharray="2,2"/></svg>Pareja</span>
+    <span style="margin-left:auto;font-size:10px;color:#ccc">Clic = detalle · Rueda = zoom · Arrastrar = mover</span>
+  </div>
+  <div class="vp" id="vp">
+    <div id="world">
+      <svg id="svg-lines" viewBox="-4000 -4000 12000 12000" width="12000" height="12000" style="position:absolute;left:-4000px;top:-4000px"></svg>
+      <div id="nc"></div>
+    </div>
+    <div class="empty-state" id="empty">
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="22" stroke="#ccc" stroke-width="1.5"/><path d="M24 16c-2.4 0-4.3 1.9-4.3 4.3s1.9 4.3 4.3 4.3 4.3-1.9 4.3-4.3S26.4 16 24 16zm0 10.7c-4.8 0-8.7 1.9-8.7 4.3v2.2h17.4V31c0-2.4-3.9-4.3-8.7-4.3z" fill="#ccc"/></svg>
+      <span>Añade la primera persona para empezar</span>
+      <button class="btn p" id="btn-add2">+ Añadir persona</button>
+    </div>
+    <div class="detail-panel" id="detail-panel">
+      <button class="dp-close" id="dp-close">✕</button>
+      <div id="dp-content"></div>
+    </div>
+    <div class="zbar">
+      <button class="zb" id="zin">+</button>
+      <span class="zlbl" id="zlbl">100%</span>
+      <button class="zb" id="zout">−</button>
+    </div>
+  </div>
+  <div class="bot">
+    <span class="bot-label">Exportar:</span>
+    <button class="btn" id="btn-json">⬇ JSON</button>
+    <button class="btn" id="btn-html">⬇ HTML visual</button>
+    <button class="btn" id="btn-imp">⬆ Importar JSON</button>
+    <input type="file" id="imp-file" accept=".json" style="display:none"/>
+    <span class="exp-note">· JSON para guardar/recuperar · HTML para compartir</span>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h3 id="modal-title">Añadir persona</h3>
+
+    <!-- Género -->
+    <div class="field" id="gender-field">
+      <label>Género</label>
+      <div class="gender-row">
+        <button type="button" id="btn-male">♂ Hombre</button>
+        <button type="button" id="btn-female">♀ Mujer</button>
+      </div>
+    </div>
+
+    <!-- Datos básicos -->
+    <div class="field"><label>Nombre *</label><input id="fn" placeholder="Ej: María García López"/></div>
+    <div class="field"><label>Ciudad</label><input id="fc" placeholder="Ej: Barcelona"/></div>
+    <div class="field"><label>Año de nacimiento</label><input id="fb" type="number" placeholder="Ej: 1950" min="1000" max="2100"/></div>
+    <div class="field"><label>Año de fallecimiento</label><input id="fd" type="number" placeholder="Vacío si vive" min="1000" max="2100"/></div>
+
+    <!-- Relación -->
+    <div class="rel-section" id="rel-section" style="display:none">
+      <div class="rel-title">Relación con personas existentes</div>
+
+      <!-- Tipo de relación -->
+      <div style="font-size:11px;color:#666;font-weight:500;margin-bottom:5px">Esta nueva persona es...</div>
+      <div class="rel-type-row" id="rel-type-row"></div>
+
+      <!-- Con quién (persona 1) -->
+      <div class="rel-person-row show" id="rel-person-row">
+        <div class="field" style="margin-bottom:8px">
+          <label id="rel-person-label">¿De quién es hijo/a?</label>
+          <select id="rel-person"></select>
+        </div>
+      </div>
+
+      <!-- Segundo padre (solo para hijos) -->
+      <div class="second-parent-section" id="second-parent-section">
+        <div class="second-parent-label">
+          <input type="checkbox" id="second-parent-check" style="cursor:pointer;accent-color:#185FA5"/>
+          <label for="second-parent-check" style="cursor:pointer">Añadir segundo padre/madre</label>
+        </div>
+        <div id="second-parent-fields" style="display:none">
+          <div class="field" style="margin-bottom:0">
+            <label>Segundo padre/madre</label>
+            <select id="rel-person2"></select>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn" id="modal-cancel">Cancelar</button>
+      <button class="btn p" id="modal-ok">Guardar</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+const SK='genealogy_v7';
+const NW=170;
+
+let people={}, edges=[], idc=1;
+let mMode=null, mEdit=null, mGender='male', mRelType='hijo';
+let sc=1, px=60, py=60;
+let panning=false, psX=0, psY=0, poX=0, poY=0;
+let dragId=null, dOX=0, dOY=0, dSX=0, dSY=0, didDrag=false;
+let selectedId=null;
+
+const vp   = document.getElementById('vp');
+const world= document.getElementById('world');
+const svgEl= document.getElementById('svg-lines');
+const nc   = document.getElementById('nc');
+const mb   = document.getElementById('modal-bg');
+const dp   = document.getElementById('detail-panel');
+
+const GLBL ={male:'Hombre', female:'Mujer'};
+const GICON={male:'♂', female:'♀'};
+const EST={
+  hijo:    {s:'#2E7D32', w:2,   d:''},
+  hermano: {s:'#E65100', w:1.5, d:'5,3'},
+  pareja:  {s:'#6A1B9A', w:2,   d:'2,2'},
+  padre:   {s:'#2E7D32', w:2,   d:''},
+  madre:   {s:'#2E7D32', w:2,   d:''}
+};
+const REL_TYPES=[
+  {id:'hijo',    label:'Hijo/a'},
+  {id:'padre',   label:'Padre'},
+  {id:'madre',   label:'Madre'},
+  {id:'hermano', label:'Hermano/a'},
+  {id:'pareja',  label:'Pareja'}
+];
+
+/* ── util ── */
+function applyT(){world.style.transform=`translate(${px}px,${py}px) scale(${sc})`;document.getElementById('zlbl').textContent=Math.round(sc*100)+'%';}
+function zoomBy(d,cx,cy){const vr=vp.getBoundingClientRect();const ox=cx!=null?cx:vr.width/2,oy=cy!=null?cy:vr.height/2;const ns=Math.min(3,Math.max(0.1,sc+d));px=ox-(ox-px)*(ns/sc);py=oy-(oy-py)*(ns/sc);sc=ns;applyT();}
+function sstat(msg,w){document.getElementById('stxt').textContent=msg;document.getElementById('sdot').className='dot'+(w?' w':'');}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function uid(){return 'p'+(idc++)}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function initials(n){return n.trim().split(/\s+/).slice(0,2).map(w=>w[0].toUpperCase()).join('');}
+
+/* ── node geometry: read actual DOM height ── */
+function nH(id){const el=document.getElementById('nd-'+id);return el?el.offsetHeight:100;}
+function botC(p){return {x:p.x+NW/2, y:p.y+nH(p.id)};}
+function topC(p){return {x:p.x+NW/2, y:p.y};}
+function midC(p){return {x:p.x+NW/2, y:p.y+nH(p.id)/2};}
+
+/* ── gender buttons ── */
+function setGender(g){
+  mGender=g;
+  const bm=document.getElementById('btn-male'), bf=document.getElementById('btn-female');
+  if(!bm||!bf)return;
+  bm.className=g==='male'?'active-male':'';
+  bf.className=g==='female'?'active-female':'';
+}
+document.getElementById('btn-male').addEventListener('click',()=>setGender('male'));
+document.getElementById('btn-female').addEventListener('click',()=>setGender('female'));
+
+/* ── rel type buttons ── */
+function buildRelButtons(selected){
+  const row=document.getElementById('rel-type-row');
+  row.innerHTML='';
+  REL_TYPES.forEach(r=>{
+    const b=document.createElement('button');
+    b.type='button'; b.textContent=r.label;
+    b.dataset.rel=r.id; b.className='rel-type-btn';
+    if(r.id===selected) b.classList.add('sel-'+r.id);
+    b.addEventListener('click',()=>{
+      mRelType=r.id;
+      row.querySelectorAll('button').forEach(x=>{x.className='rel-type-btn';if(x.dataset.rel===r.id)x.classList.add('sel-'+r.id);});
+      updateRelFields();
+    });
+    row.appendChild(b);
+  });
+}
+
+function updateRelFields(){
+  const lbl=document.getElementById('rel-person-label');
+  const sp=document.getElementById('second-parent-section');
+  if(mRelType==='hijo'){
+    lbl.textContent='¿De quién es hijo/a? (Padre o madre)';
+    sp.className='second-parent-section show';
+  } else if(mRelType==='padre'){
+    lbl.textContent='¿Padre de quién?';
+    sp.className='second-parent-section';
+  } else if(mRelType==='madre'){
+    lbl.textContent='¿Madre de quién?';
+    sp.className='second-parent-section';
+  } else if(mRelType==='hermano'){
+    lbl.textContent='¿Hermano/a de quién?';
+    sp.className='second-parent-section';
+  } else if(mRelType==='pareja'){
+    lbl.textContent='¿Pareja de quién?';
+    sp.className='second-parent-section';
+  }
+}
+
+document.getElementById('second-parent-check').addEventListener('change',function(){
+  document.getElementById('second-parent-fields').style.display=this.checked?'block':'none';
+});
+
+/* ── fill selects ── */
+function fillSelects(excludeId){
+  const s1=document.getElementById('rel-person');
+  const s2=document.getElementById('rel-person2');
+  s1.innerHTML=''; s2.innerHTML='';
+  const noneOpt=document.createElement('option');
+  noneOpt.value=''; noneOpt.textContent='— Ninguno —';
+  s2.appendChild(noneOpt);
+  Object.values(people).forEach(p=>{
+    if(p.id===excludeId)return;
+    const o1=document.createElement('option'); o1.value=p.id; o1.textContent=p.name+(p.born?' ('+p.born+')':'');
+    s1.appendChild(o1);
+    const o2=document.createElement('option'); o2.value=p.id; o2.textContent=p.name+(p.born?' ('+p.born+')':'');
+    s2.appendChild(o2);
+  });
+}
+
+/* ── modal open ── */
+function openModal(mode, presetSrcId, presetRelType, editId){
+  mMode=mode; mEdit=editId||null;
+  const isEdit=mode==='edit';
+  const hasOthers=Object.keys(people).length>0;
+  document.getElementById('modal-title').textContent=isEdit?'Editar persona':'Añadir persona';
+  document.getElementById('gender-field').style.display='block';
+  document.getElementById('rel-section').style.display=(isEdit||!hasOthers)?'none':'block';
+  const p=editId?people[editId]:null;
+  setGender(p?(p.gender||'male'):'male');
+  document.getElementById('fn').value=p?p.name:'';
+  document.getElementById('fc').value=p?(p.city||''):'';
+  document.getElementById('fb').value=p?(p.born||''):'';
+  document.getElementById('fd').value=p?(p.died||''):'';
+  document.getElementById('fn').classList.remove('err');
+
+  if(!isEdit&&hasOthers){
+    mRelType=presetRelType||'hijo';
+    buildRelButtons(mRelType);
+    fillSelects(null);
+    if(presetSrcId) document.getElementById('rel-person').value=presetSrcId;
+    updateRelFields();
+    document.getElementById('second-parent-check').checked=false;
+    document.getElementById('second-parent-fields').style.display='none';
+  }
+  mb.style.display='flex';
+  setTimeout(()=>document.getElementById('fn').focus(),40);
+}
+function closeModal(){mb.style.display='none';}
+
+/* ── modal save ── */
+function saveModal(){
+  const name=document.getElementById('fn').value.trim();
+  if(!name){document.getElementById('fn').classList.add('err');return;}
+  document.getElementById('fn').classList.remove('err');
+  const city=document.getElementById('fc').value.trim();
+  const born=document.getElementById('fb').value.trim();
+  const died=document.getElementById('fd').value.trim();
+  const gender=mGender;
+
+  // EDIT
+  if(mMode==='edit'&&mEdit){
+    people[mEdit]={...people[mEdit],name,city,born,died,gender};
+    closeModal();sstat('Cambios sin guardar',true);render();
+    if(selectedId===mEdit)openDetail(mEdit);
+    return;
+  }
+
+  // ADD
+  const id=uid();
+  const hasOthers=Object.keys(people).length>0;
+  const srcId=hasOthers?document.getElementById('rel-person').value:null;
+  const src=srcId?people[srcId]:null;
+
+  // second parent (only for hijo)
+  const useSecond=mRelType==='hijo'&&document.getElementById('second-parent-check').checked;
+  const srcId2=useSecond?document.getElementById('rel-person2').value:null;
+  const src2=srcId2&&srcId2!==''?people[srcId2]:null;
+
+  // position
+  let x=120, y=120;
+  if(src){
+    if(mRelType==='hijo'){
+      // place below the midpoint of the two parents if both exist
+      if(src2){
+        const [L,R]=src.x<src2.x?[src,src2]:[src2,src];
+        x=(L.x+R.x)/2; y=Math.max(src.y,src2.y)+280;
+        // check existing siblings to avoid overlap
+        const ex=edges.filter(e=>e.from===srcId&&e.type==='hijo').map(e=>people[e.to]).filter(Boolean);
+        if(ex.length) x=Math.max(...ex.map(p=>p.x))+200;
+      } else {
+        const ex=edges.filter(e=>e.from===srcId&&e.type==='hijo').map(e=>people[e.to]).filter(Boolean);
+        x=ex.length?Math.max(...ex.map(p=>p.x))+200:src.x;
+        y=src.y+280;
+      }
+    } else if(mRelType==='padre'||mRelType==='madre'){
+      const ex=edges.filter(e=>e.to===srcId&&(e.type==='padre'||e.type==='madre')).map(e=>people[e.from]).filter(Boolean);
+      x=ex.length?Math.max(...ex.map(p=>p.x))+200:src.x-220;
+      y=Math.max(20,src.y-280);
+    } else if(mRelType==='hermano'){
+      const ex=edges.filter(e=>(e.from===srcId||e.to===srcId)&&e.type==='hermano').map(e=>people[e.from===srcId?e.to:e.from]).filter(Boolean);
+      x=ex.length?Math.max(...ex.map(p=>p.x))+200:src.x+200;
+      y=src.y;
+    } else if(mRelType==='pareja'){
+      x=src.x+220; y=src.y;
+    }
+  } else {
+    const vals=Object.values(people);
+    if(vals.length){x=Math.max(...vals.map(v=>v.x))+200;y=vals[vals.length-1].y;}
+  }
+
+  people[id]={id,name,city,born,died,gender,x,y};
+
+  // create edges
+  if(srcId&&src){
+    if(mRelType==='hijo'){
+      edges.push({from:srcId, to:id, type:'hijo'});
+      if(src2) edges.push({from:srcId2, to:id, type:'hijo'});
+    } else if(mRelType==='padre'||mRelType==='madre'){
+      edges.push({from:id, to:srcId, type:mRelType});
+    } else if(mRelType==='hermano'){
+      edges.push({from:srcId, to:id, type:'hermano'});
+    } else if(mRelType==='pareja'){
+      edges.push({from:srcId, to:id, type:'pareja'});
+    }
+  }
+
+  closeModal();sstat('Cambios sin guardar',true);render();
+  setTimeout(()=>{
+    const vr=vp.getBoundingClientRect();
+    const p=people[id];
+    px=vr.width/2-(p.x+NW/2)*sc;
+    py=vr.height/2-(p.y+50)*sc;
+    applyT(); openDetail(id);
+  },80);
+}
+
+/* ── detail panel ── */
+function openDetail(id){
+  selectedId=id;
+  const p=people[id], g=p.gender||'male';
+
+  // parents = edges where to===id and type in [padre,madre,hijo(from=parent)]
+  const parents=[
+    ...edges.filter(e=>e.to===id&&(e.type==='padre'||e.type==='madre')).map(e=>({p:people[e.from],t:e.type})),
+    ...edges.filter(e=>e.to===id&&e.type==='hijo').map(e=>({p:people[e.from],t:'padre/madre'}))
+  ].filter(x=>x.p);
+  const children=edges.filter(e=>e.from===id&&e.type==='hijo').map(e=>people[e.to]).filter(Boolean);
+  const siblings=edges.filter(e=>(e.from===id||e.to===id)&&e.type==='hermano').map(e=>people[e.from===id?e.to:e.from]).filter(Boolean);
+  const partners=edges.filter(e=>(e.from===id||e.to===id)&&e.type==='pareja').map(e=>people[e.from===id?e.to:e.from]).filter(Boolean);
+  const yr=(p.born||p.died)?((p.born||'?')+(p.died?' – '+p.died:' – presente')):'—';
+  let age='';
+  if(p.born){const a=p.died?parseInt(p.died)-parseInt(p.born):new Date().getFullYear()-parseInt(p.born);if(!isNaN(a)&&a>=0)age=a+(p.died?' años (fallecido)':' años');}
+
+  let html=`<div class="dp-avatar ${g}">${initials(p.name)}</div>`;
+  html+=`<div class="dp-name">${esc(p.name)}</div><div class="dp-gender">${GICON[g]} ${GLBL[g]}</div>`;
+  html+=`<div class="dp-row"><span class="dp-lbl">Ciudad</span><span class="dp-val">${p.city?esc(p.city):'—'}</span></div>`;
+  html+=`<div class="dp-row"><span class="dp-lbl">Años</span><span class="dp-val">${yr}</span></div>`;
+  if(age)html+=`<div class="dp-row"><span class="dp-lbl">Edad</span><span class="dp-val">${age}</span></div>`;
+  if(parents.length)html+=`<div class="dp-section">Padres</div><div class="dp-rel">${parents.map(({p:r})=>`<span class="dp-rel-tag" data-goto="${r.id}">${esc(r.name)}</span>`).join('')}</div>`;
+  if(partners.length)html+=`<div class="dp-section">Pareja</div><div class="dp-rel">${partners.map(r=>`<span class="dp-rel-tag" data-goto="${r.id}">${esc(r.name)}</span>`).join('')}</div>`;
+  if(siblings.length)html+=`<div class="dp-section">Hermanos/as</div><div class="dp-rel">${siblings.map(r=>`<span class="dp-rel-tag" data-goto="${r.id}">${esc(r.name)}</span>`).join('')}</div>`;
+  if(children.length)html+=`<div class="dp-section">Hijos/as</div><div class="dp-rel">${children.map(r=>`<span class="dp-rel-tag" data-goto="${r.id}">${esc(r.name)}</span>`).join('')}</div>`;
+  html+=`<div class="dp-actions" style="margin-top:10px"><button class="dp-btn" id="dpb-add">+ Añadir familiar</button></div>`;
+  html+=`<div class="dp-actions" style="margin-top:5px"><button class="dp-btn" id="dpb-edit">✎ Editar</button><button class="dp-btn danger" id="dpb-del">✕ Eliminar</button></div>`;
+
+  document.getElementById('dp-content').innerHTML=html;
+  document.getElementById('dp-content').addEventListener('click',e=>{
+    const tag=e.target.closest('[data-goto]'); if(tag) openDetail(tag.dataset.goto);
+  });
+  document.getElementById('dpb-add').addEventListener('click',()=>{closeDetail();openModal('add',id,'hijo',null);});
+  document.getElementById('dpb-edit').addEventListener('click',()=>openModal('edit',null,null,id));
+  document.getElementById('dpb-del').addEventListener('click',()=>deletePerson(id));
+
+  dp.classList.add('open');
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));
+  const nd=document.getElementById('nd-'+id); if(nd) nd.classList.add('selected');
+}
+function closeDetail(){dp.classList.remove('open');selectedId=null;document.querySelectorAll('.node').forEach(n=>n.classList.remove('selected'));}
+document.getElementById('dp-close').addEventListener('click',closeDetail);
+function deletePerson(id){
+  if(!confirm('¿Eliminar a '+people[id].name+'?'))return;
+  delete people[id]; edges=edges.filter(e=>e.from!==id&&e.to!==id);
+  closeDetail();sstat('Cambios sin guardar',true);render();
+}
+
+/* ── render ── */
+function render(){
+  nc.innerHTML='';
+  const ids=Object.keys(people);
+  document.getElementById('empty').style.display=ids.length===0?'flex':'none';
+  ids.forEach(id=>{
+    const p=people[id], g=p.gender||'male';
+    const div=document.createElement('div');
+    div.className='node '+g+(selectedId===id?' selected':'');
+    div.id='nd-'+id; div.style.cssText=`left:${p.x}px;top:${p.y}px`;
+    const yr=(p.born||p.died)?((p.born||'?')+(p.died?' – '+p.died:' – presente')):'';
+    div.innerHTML=`<div class="node-gender ${g}">${GICON[g]} ${GLBL[g]}</div><div class="nn" title="${esc(p.name)}">${esc(p.name)}</div>${p.city?`<div class="nc2">${esc(p.city)}</div>`:''}<div class="ny">${yr}</div>`;
+    nc.appendChild(div);
+  });
+  requestAnimationFrame(drawLines);
+}
+
+/* ══════════════════════════════════════
+   DRAW LINES
+   
+   Edge types stored:
+   - hijo:    from=parentId, to=childId
+   - padre:   from=parentId, to=childId
+   - madre:   from=parentId, to=childId
+   - hermano: from=A, to=B (symmetric)
+   - pareja:  from=A, to=B (symmetric)
+
+   For each child, collect ALL parent IDs.
+   If those parents are connected by a pareja edge →
+     draw from the MIDPOINT of the couple line.
+   Otherwise → draw from each parent's bottom individually.
+══════════════════════════════════════ */
+function drawLines(){
+  svgEl.innerHTML='';
+
+  /* 1. pareja lines */
+  const drawnPar=new Set();
+  edges.filter(e=>e.type==='pareja').forEach(e=>{
+    const key=[e.from,e.to].sort().join('|');
+    if(drawnPar.has(key))return; drawnPar.add(key);
+    const a=people[e.from], b=people[e.to]; if(!a||!b)return;
+    const [L,R]=a.x<=b.x?[a,b]:[b,a];
+    // line from right edge of L to left edge of R, at their vertical centres
+    const x1=L.x+NW, y1=L.y+nH(L.id)/2;
+    const x2=R.x,    y2=R.y+nH(R.id)/2;
+    addEl('line',{x1,y1,x2,y2,...styleAttr(EST.pareja)});
+  });
+
+  /* 2. hermano lines */
+  const drawnHer=new Set();
+  edges.filter(e=>e.type==='hermano').forEach(e=>{
+    const key=[e.from,e.to].sort().join('|');
+    if(drawnHer.has(key))return; drawnHer.add(key);
+    const a=people[e.from], b=people[e.to]; if(!a||!b)return;
+    const ax=a.x+NW/2, ay=a.y+nH(a.id)/2;
+    const bx=b.x+NW/2, by=b.y+nH(b.id)/2;
+    addPath(`M${ax},${ay} Q${(ax+bx)/2},${(ay+by)/2} ${bx},${by}`, EST.hermano);
+  });
+
+  /* 3. child lines — from couple midpoint or single parent */
+  // Build childId → [parentId, ...]
+  const c2p={};
+  edges.forEach(e=>{
+    const isParentEdge = e.type==='hijo'||e.type==='padre'||e.type==='madre';
+    if(!isParentEdge)return;
+    const parentId=e.from, childId=e.to;
+    if(!people[parentId]||!people[childId])return;
+    if(!c2p[childId]) c2p[childId]=[];
+    if(!c2p[childId].includes(parentId)) c2p[childId].push(parentId);
+  });
+
+  Object.entries(c2p).forEach(([childId, parentIds])=>{
+    const child=people[childId]; if(!child)return;
+    const ct=topC(child); // top-centre of child node
+
+    if(parentIds.length>=2){
+      const p1=people[parentIds[0]], p2=people[parentIds[1]];
+      if(!p1||!p2){
+        // fallback: draw from whichever parent exists
+        parentIds.forEach(pid=>{const par=people[pid];if(par)drawFromParent(par,ct);});
+        return;
+      }
+      // Are p1 and p2 a pareja?
+      const arePareja=edges.some(e=>
+        e.type==='pareja'&&
+        ((e.from===parentIds[0]&&e.to===parentIds[1])||
+         (e.from===parentIds[1]&&e.to===parentIds[0]))
+      );
+      if(arePareja){
+        // midpoint of the pareja LINE (right-edge of left node → left-edge of right node)
+        const [L,R]=p1.x<=p2.x?[p1,p2]:[p2,p1];
+        const lx=L.x+NW, ly=L.y+nH(L.id)/2;
+        const rx=R.x,    ry=R.y+nH(R.id)/2;
+        const ox=(lx+rx)/2, oy=(ly+ry)/2;
+        drawChildFromPoint(ox,oy,ct);
+      } else {
+        // no pareja — draw from each parent individually
+        parentIds.forEach(pid=>{const par=people[pid];if(par)drawFromParent(par,ct);});
+      }
+    } else {
+      const par=people[parentIds[0]]; if(par) drawFromParent(par,ct);
+    }
+  });
+}
+
+function drawFromParent(par, ct){
+  const bc=botC(par);
+  drawChildFromPoint(bc.x, bc.y, ct);
+}
+
+function drawChildFromPoint(ox, oy, ct){
+  const dropY=oy+(ct.y-oy)*0.4;
+  addPath(`M${ox},${oy} L${ox},${dropY} C${ox},${ct.y} ${ct.x},${dropY} ${ct.x},${ct.y}`, EST.hijo);
+}
+
+function styleAttr(st){return {stroke:st.s,'stroke-width':st.w,...(st.d?{'stroke-dasharray':st.d}:{})};}
+
+function addEl(tag, attrs){
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  svgEl.appendChild(el);
+}
+function addPath(d,st){
+  addEl('path',{d,'fill':'none',...styleAttr(st)});
+}
+
+/* ── input events ── */
+/* ── shared pointer logic ── */
+function pointerDown(clientX, clientY, target, isTouch){
+  const node=target.closest('.node');
+  if(node){
+    const id=node.id.replace('nd-','');
+    dragId=id; dSX=clientX; dSY=clientY; dOX=people[id].x; dOY=people[id].y; didDrag=false;
+    node.style.zIndex=20;
+    return;
+  }
+  if(target.closest('.zbar')||target.closest('.detail-panel')||target.closest('.empty-state')) return;
+  panning=true; psX=clientX; psY=clientY; poX=px; poY=py;
+  vp.classList.add('pan');
+}
+function pointerMove(clientX, clientY){
+  if(panning){px=poX+(clientX-psX); py=poY+(clientY-psY); applyT();}
+  if(dragId){
+    const dx=clientX-dSX, dy=clientY-dSY;
+    if(Math.abs(dx)>3||Math.abs(dy)>3) didDrag=true;
+    people[dragId].x=dOX+dx/sc;
+    people[dragId].y=dOY+dy/sc;
+    const nd=document.getElementById('nd-'+dragId);
+    if(nd){nd.style.left=people[dragId].x+'px'; nd.style.top=people[dragId].y+'px';}
+    requestAnimationFrame(drawLines);
+  }
+}
+function pointerUp(target){
+  if(panning){panning=false; vp.classList.remove('pan');}
+  if(dragId){
+    const nd=document.getElementById('nd-'+dragId); if(nd) nd.style.zIndex='';
+    if(!didDrag && target){
+      // treat as tap/click → open detail
+      const node=target.closest('.node');
+      if(node) openDetail(node.id.replace('nd-',''));
+    }
+    if(didDrag) sstat('Cambios sin guardar',true);
+    dragId=null;
+  }
+}
+
+/* ── mouse events ── */
+nc.addEventListener('click',e=>{
+  if(didDrag)return;
+  const node=e.target.closest('.node'); if(node) openDetail(node.id.replace('nd-',''));
+});
+nc.addEventListener('mousedown',e=>{
+  const node=e.target.closest('.node'); if(!node)return;
+  const id=node.id.replace('nd-','');
+  dragId=id; dSX=e.clientX; dSY=e.clientY; dOX=people[id].x; dOY=people[id].y; didDrag=false;
+  node.style.zIndex=20; e.preventDefault(); e.stopPropagation();
+});
+vp.addEventListener('mousedown',e=>{
+  if(e.target.closest('.node')||e.target.closest('.zbar')||e.target.closest('.detail-panel')||e.target.closest('.empty-state'))return;
+  panning=true; psX=e.clientX; psY=e.clientY; poX=px; poY=py;
+  vp.classList.add('pan'); e.preventDefault();
+});
+document.addEventListener('mousemove',e=>{
+  if(panning){px=poX+(e.clientX-psX); py=poY+(e.clientY-psY); applyT();}
+  if(dragId){
+    const dx=e.clientX-dSX, dy=e.clientY-dSY;
+    if(Math.abs(dx)>3||Math.abs(dy)>3) didDrag=true;
+    people[dragId].x=dOX+dx/sc;
+    people[dragId].y=dOY+dy/sc;
+    const nd=document.getElementById('nd-'+dragId);
+    if(nd){nd.style.left=people[dragId].x+'px'; nd.style.top=people[dragId].y+'px';}
+    requestAnimationFrame(drawLines);
+  }
+});
+document.addEventListener('mouseup',e=>{
+  if(panning){panning=false; vp.classList.remove('pan');}
+  if(dragId){const nd=document.getElementById('nd-'+dragId);if(nd)nd.style.zIndex='';dragId=null;if(didDrag)sstat('Cambios sin guardar',true);}
+});
+vp.addEventListener('wheel',e=>{
+  e.preventDefault();
+  const vr=vp.getBoundingClientRect();
+  zoomBy(e.deltaY<0?0.12:-0.12,e.clientX-vr.left,e.clientY-vr.top);
+},{passive:false});
+
+/* ── touch events (iOS/Android) ── */
+let lastTap=0, touchStartX=0, touchStartY=0;
+let pinchDist=0;
+
+function getTouchDist(t){
+  const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+
+vp.addEventListener('touchstart',e=>{
+  if(e.touches.length===2){
+    // pinch zoom start
+    pinchDist=getTouchDist(e.touches);
+    e.preventDefault(); return;
+  }
+  const t=e.touches[0];
+  touchStartX=t.clientX; touchStartY=t.clientY;
+  pointerDown(t.clientX, t.clientY, e.target, true);
+  e.preventDefault();
+},{passive:false});
+
+vp.addEventListener('touchmove',e=>{
+  if(e.touches.length===2){
+    // pinch zoom
+    const dist=getTouchDist(e.touches);
+    const vr=vp.getBoundingClientRect();
+    const cx=(e.touches[0].clientX+e.touches[1].clientX)/2-vr.left;
+    const cy=(e.touches[0].clientY+e.touches[1].clientY)/2-vr.top;
+    zoomBy((dist-pinchDist)*0.005, cx, cy);
+    pinchDist=dist;
+    e.preventDefault(); return;
+  }
+  const t=e.touches[0];
+  pointerMove(t.clientX, t.clientY);
+  e.preventDefault();
+},{passive:false});
+
+vp.addEventListener('touchend',e=>{
+  const t=e.changedTouches[0];
+  const dx=Math.abs(t.clientX-touchStartX), dy=Math.abs(t.clientY-touchStartY);
+  const wasTap=dx<8&&dy<8&&!didDrag;
+  pointerUp(wasTap ? e.target : null);
+  // double-tap zoom
+  const now=Date.now();
+  if(wasTap && now-lastTap<300){
+    const vr=vp.getBoundingClientRect();
+    zoomBy(sc<1.2?0.4:-0.8, t.clientX-vr.left, t.clientY-vr.top);
+  }
+  lastTap=now;
+},{passive:true});
+mb.addEventListener('click',e=>{if(e.target===mb)closeModal();});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeModal();closeDetail();}
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();saveTree();}
+  if(e.key==='Enter'&&mb.style.display==='flex')saveModal();
+});
+document.getElementById('modal-cancel').addEventListener('click',closeModal);
+document.getElementById('modal-ok').addEventListener('click',saveModal);
+document.getElementById('btn-add').addEventListener('click',()=>openModal('add',null,null,null));
+document.getElementById('btn-add2').addEventListener('click',()=>openModal('add',null,null,null));
+document.getElementById('btn-save').addEventListener('click',saveTree);
+document.getElementById('btn-center').addEventListener('click',centerView);
+document.getElementById('btn-clear').addEventListener('click',resetAll);
+document.getElementById('zin').addEventListener('click',()=>zoomBy(0.2));
+document.getElementById('zout').addEventListener('click',()=>zoomBy(-0.2));
+document.getElementById('btn-json').addEventListener('click',exportJSON);
+document.getElementById('btn-html').addEventListener('click',exportHTMLFile);
+document.getElementById('btn-imp').addEventListener('click',()=>document.getElementById('imp-file').click());
+document.getElementById('imp-file').addEventListener('change',importJSON);
+
+function centerView(){
+  const ids=Object.keys(people);
+  if(!ids.length){px=200;py=200;sc=1;applyT();return;}
+  let mnX=Infinity,mnY=Infinity,mxX=-Infinity,mxY=-Infinity;
+  ids.forEach(id=>{const p=people[id];mnX=Math.min(mnX,p.x);mnY=Math.min(mnY,p.y);mxX=Math.max(mxX,p.x+NW);mxY=Math.max(mxY,p.y+140);});
+  const vr=vp.getBoundingClientRect();
+  const cw=mxX-mnX+80, ch=mxY-mnY+80;
+  sc=Math.max(0.1,Math.min(1.5,Math.min((vr.width-40)/cw,(vr.height-40)/ch)));
+  px=(vr.width-cw*sc)/2-mnX*sc+40*sc;
+  py=(vr.height-ch*sc)/2-mnY*sc+40*sc;
+  applyT();
+}
+function saveTree(){
+  const d={people,edges,idc,savedAt:new Date().toISOString()};
+  try{localStorage.setItem(SK,JSON.stringify(d));sstat('Guardado '+new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));showToast('Árbol guardado');}
+  catch{sstat('Error al guardar',true);}
+}
+function migrateEdges(arr){
+  return (arr||[]).map(e=>{
+    if(e.type==='parent') e.type='padre';
+    if(e.type==='child')  e.type='hijo';
+    if(e.type==='sibling')e.type='hermano';
+    return e;
+  });
+}
+function loadTree(){
+  const keys=['genealogy_v7','genealogy_v6','genealogy_v5','genealogy_v4'];
+  for(const k of keys){
+    try{
+      const raw=localStorage.getItem(k);
+      if(raw){
+        const d=JSON.parse(raw);
+        people=d.people||{}; edges=migrateEdges(d.edges); idc=d.idc||1;
+        sstat('Cargado · '+new Date(d.savedAt).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}));
+        break;
+      }
+    }catch{}
+  }
+  render(); setTimeout(centerView,100);
+}
+function resetAll(){
+  if(!confirm('¿Borrar todo el árbol? Esta acción no se puede deshacer.'))return;
+  people={};edges=[];idc=1;closeDetail();render();sstat('Árbol borrado',true);showToast('Árbol borrado');
+}
+function dl(c,n,t){
+  const b=new Blob([c],{type:t}), u=URL.createObjectURL(b);
+  const a=document.createElement('a');
+  a.href=u; a.download=n; a.style.display='none';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(u);},300);
+}
+function exportJSON(){
+  if(!Object.keys(people).length){showToast('El árbol está vacío');return;}
+  dl(JSON.stringify({people,edges,idc,exportedAt:new Date().toISOString()},null,2),'arbol_genealogico.json','application/json');
+  showToast('JSON descargado');
+}
+function importJSON(e){
+  const file=e.target.files[0]; if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      if(!d.people||!d.edges)throw new Error('Formato incorrecto');
+      if(!confirm('¿Reemplazar el árbol actual?'))return;
+      people=d.people; edges=migrateEdges(d.edges); idc=d.idc||1;
+      render(); setTimeout(centerView,100); sstat('Importado correctamente'); showToast('Árbol importado');
+    }catch(err){alert('Error al importar: '+err.message);}
+  };
+  r.readAsText(file); e.target.value='';
+}
+function exportHTMLFile(){
+  const nodes=Object.values(people);
+  if(!nodes.length){showToast('El árbol está vacío');return;}
+  let mxX=0,mxY=0;
+  nodes.forEach(p=>{mxX=Math.max(mxX,p.x+220);mxY=Math.max(mxY,p.y+180);});
+  mxX+=60;mxY+=60;
+  const NH_EX=100; // export fixed height
+  const GCOL={male:'#185FA5',female:'#C2185B'};
+  const nh=nodes.map(p=>{
+    const g=p.gender||'male';
+    const yr=(p.born||p.died)?((p.born||'?')+(p.died?' – '+p.died:' – presente')):'';
+    return `<div style="position:absolute;left:${p.x}px;top:${p.y}px;width:${NW}px;background:#fff;border:1px solid #ddd;border-top:3px solid ${GCOL[g]};border-radius:10px;padding:9px 12px 8px;font-family:sans-serif;box-shadow:0 1px 5px rgba(0,0,0,0.07)"><div style="font-size:10px;color:${GCOL[g]};margin-bottom:2px">${GICON[g]} ${GLBL[g]}</div><div style="font-size:13px;font-weight:600;color:#1a1a1a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</div>${p.city?`<div style="font-size:11px;color:#666">${esc(p.city)}</div>`:''}<div style="font-size:10px;color:#999;margin-top:1px">${yr}</div></div>`;
+  }).join('');
+  const svgP=[];
+  // pareja
+  const dP=new Set();
+  edges.filter(e=>e.type==='pareja').forEach(e=>{
+    const key=[e.from,e.to].sort().join('|');
+    if(dP.has(key))return; dP.add(key);
+    const a=people[e.from],b=people[e.to]; if(!a||!b)return;
+    const [L,R]=a.x<=b.x?[a,b]:[b,a];
+    const st=EST.pareja;
+    svgP.push(`<line x1="${L.x+NW}" y1="${L.y+NH_EX/2}" x2="${R.x}" y2="${R.y+NH_EX/2}" stroke="${st.s}" stroke-width="${st.w}" stroke-dasharray="${st.d}"/>`);
+  });
+  // hermano
+  const dH=new Set();
+  edges.filter(e=>e.type==='hermano').forEach(e=>{
+    const key=[e.from,e.to].sort().join('|');
+    if(dH.has(key))return; dH.add(key);
+    const a=people[e.from],b=people[e.to]; if(!a||!b)return;
+    const st=EST.hermano;
+    svgP.push(`<path d="M${a.x+NW/2},${a.y+NH_EX/2} Q${(a.x+b.x)/2+NW/2},${(a.y+b.y)/2+NH_EX/2} ${b.x+NW/2},${b.y+NH_EX/2}" fill="none" stroke="${st.s}" stroke-width="${st.w}" stroke-dasharray="${st.d}"/>`);
+  });
+  // children
+  const c2p={};
+  edges.forEach(e=>{
+    if(e.type!=='hijo'&&e.type!=='padre'&&e.type!=='madre')return;
+    const pid=e.from,cid=e.to;
+    if(!people[pid]||!people[cid])return;
+    if(!c2p[cid])c2p[cid]=[];
+    if(!c2p[cid].includes(pid))c2p[cid].push(pid);
+  });
+  Object.entries(c2p).forEach(([cid,pids])=>{
+    const child=people[cid]; if(!child)return;
+    const cx=child.x+NW/2, cy=child.y;
+    const st=EST.hijo;
+    let ox,oy;
+    if(pids.length>=2){
+      const p1=people[pids[0]],p2=people[pids[1]];
+      if(!p1||!p2)return;
+      const isPar=edges.some(e=>e.type==='pareja'&&((e.from===pids[0]&&e.to===pids[1])||(e.from===pids[1]&&e.to===pids[0])));
+      if(isPar){
+        const [L,R]=p1.x<=p2.x?[p1,p2]:[p2,p1];
+        ox=(L.x+NW+R.x)/2; oy=(L.y+NH_EX/2+R.y+NH_EX/2)/2;
+      } else {
+        pids.forEach(pid=>{
+          const par=people[pid]; if(!par)return;
+          const bx=par.x+NW/2, by=par.y+NH_EX;
+          const dy2=by+(cy-by)*0.4;
+          svgP.push(`<path d="M${bx},${by} L${bx},${dy2} C${bx},${cy} ${cx},${dy2} ${cx},${cy}" fill="none" stroke="${st.s}" stroke-width="${st.w}"/>`);
+        });
+        return;
+      }
+    } else {
+      const par=people[pids[0]]; if(!par)return;
+      ox=par.x+NW/2; oy=par.y+NH_EX;
+    }
+    const dy=oy+(cy-oy)*0.4;
+    svgP.push(`<path d="M${ox},${oy} L${ox},${dy} C${ox},${cy} ${cx},${dy} ${cx},${cy}" fill="none" stroke="${st.s}" stroke-width="${st.w}"/>`);
+  });
+
+  const fecha=new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'long',year:'numeric'});
+  const leg=`<div style="display:flex;gap:14px;font-size:12px;color:#666;margin-bottom:22px;flex-wrap:wrap;align-items:center"><div style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:50%;background:#BBDEFB;border:2px solid #185FA5;display:inline-block"></span>Hombre</div><div style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:50%;background:#FCE4EC;border:2px solid #C2185B;display:inline-block"></span>Mujer</div><div style="display:flex;align-items:center;gap:5px"><svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#2E7D32" stroke-width="2"/></svg>Hijo/a</div><div style="display:flex;align-items:center;gap:5px"><svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#E65100" stroke-width="1.5" stroke-dasharray="5,3"/></svg>Hermano/a</div><div style="display:flex;align-items:center;gap:5px"><svg width="20" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#6A1B9A" stroke-width="2" stroke-dasharray="2,2"/></svg>Pareja</div></div>`;
+  dl(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Árbol Genealógico Familiar</title><style>body{margin:0;background:#f5f5f0;padding:30px;font-family:-apple-system,sans-serif}h1{font-size:20px;font-weight:500;margin-bottom:4px;color:#1a1a1a}.sub{font-size:12px;color:#888;margin-bottom:18px}.wrap{overflow:auto;background:#fafaf7;border:1px solid #e0e0d8;border-radius:12px;padding:28px}footer{margin-top:16px;font-size:11px;color:#bbb}</style></head><body><h1>Árbol genealógico familiar</h1><p class="sub">Exportado el ${fecha}</p>${leg}<div class="wrap"><div style="position:relative;width:${mxX}px;height:${mxY}px"><svg style="position:absolute;top:0;left:0;overflow:visible" width="${mxX}" height="${mxY}">${svgP.join('')}</svg>${nh}</div></div><footer>Generado con la app Árbol Genealógico</footer></body></html>`,'arbol_genealogico_visual.html','text/html');
+  showToast('HTML visual descargado');
+}
+
+applyT();
+loadTree();
+
+// Show iOS install banner
+if(/iphone|ipad|ipod/i.test(navigator.userAgent) && !navigator.standalone && !localStorage.getItem('ios-banner-dismissed')){
+  setTimeout(()=>{document.getElementById('ios-banner').style.display='block';},1500);
+}
+
+})();
+</script>
+</body>
+</html>
